@@ -1,0 +1,18 @@
+# 中间产物与大文件(不入库)
+temp/
+output/
+.workbuddy/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# 环境与密钥
+.env
+*.env
+
+# 系统
+.DS_Store
+Thumbs.db
+desktop.ini
