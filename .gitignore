@@ -20,3 +20,9 @@ payserver/data/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# 构建产物(发布包通过 GitHub Releases 发布, 不入库)
+dist/
+
+# 运行时日志
+mute_run.log
