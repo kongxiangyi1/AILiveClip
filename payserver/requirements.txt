@@ -1,0 +1,6 @@
+fastapi>=0.110
+uvicorn>=0.29
+# 支付宝官方 Python SDK(alipay.aop.api.*): 开放接口必须用 Model 类, 不能裸拼 HTTP
+alipay-sdk-python>=3.7
+# 商家账单 RSA2 本地加签: Python(非 Java)用 PKCS#1 原始 Base64 私钥
+pycryptodome>=3.20

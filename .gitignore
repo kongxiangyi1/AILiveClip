@@ -12,6 +12,10 @@ __pycache__/
 .env
 *.env
 
+# 计费订单库与支付缓存(隐私)
+payserver/data/
+.pay_cache/
+
 # 系统
 .DS_Store
 Thumbs.db
