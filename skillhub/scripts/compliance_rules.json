@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "name": "短视频平台发布合规词表（默认 · 视频号/抖音/快手通用口径）",
+  "updated": "2026-10-29",
+  "note": "编辑本文件即可增删词表，无需改 py。设 \"extends\": true 表示在内置默认表基础上追加（同名 id 覆盖）。",
+  "extends": false,
+  "thresholds": {
+    "drop_tool_sentences_ge": 2,
+    "drop_red_sentences_ge": 8,
+    "drop_red_cover_ratio_ge": 0.7,
+    "escalate_privacy_distinct_ge": 3,
+    "merge_gap_ms": 1500,
+    "_thresholds_doc": "drop_tool_sentences_ge=违法工具类命中句数达此值即弃片; drop_red_sentences_ge=红色区间段数达此值弃片; drop_red_cover_ratio_ge=红句总时长占片长比例达此值弃片; escalate_privacy_distinct_ge=隐私类命中不同词数达此值升级为RED; merge_gap_ms=相邻区间间隔小于此值(ms)合并"
+  },
+  "categories": [
+    {
+      "id": "politics",
+      "name": "政治/时政敏感",
+      "level": "RED",
+      "action": "CUT",
+      "advice": "删除或消音命中句；整片立场对立/时政议论密度高时直接弃用。标题同步改写。",
+      "words": ["翻墙", "梯子", "VPN", "外网", "内网", "粉红", "反贼", "遥遥领先",
+                "新闻联播", "焦点访谈", "央视", "政治", "占山为王", "热兵器",
+                "没有信仰", "无神论", "谣言", "逃离", "愚弄", "被欺骗", "抹黑",
+                "带节奏", "敏感词", "封网", "GFW", "境外势力"]
+    },
+    {
+      "id": "named_public_figure",
+      "name": "点名公众人物/官方媒体",
+      "level": "RED",
+      "action": "CUT",
+      "advice": "争议人物、官方媒体名号在切片里点名易触发审核。删句或整片弃用，标题必须改写。",
+      "words": ["司马南", "司马楠", "梁子", "春晚", "新华社", "人民日报", "环球时报"]
+    },
+    {
+      "id": "illegal_tool",
+      "name": "违法/违规工具展示",
+      "level": "RED",
+      "action": "DROP",
+      "advice": "涉及翻墙工具、话术教学、截图演示等内容，删不干净，建议整片不发布。",
+      "words": ["slogan", "截图", "翻回来", "科学上网", "机场订阅", "节点订阅", "免费梯子"]
+    },
+    {
+      "id": "profanity",
+      "name": "低俗粗口",
+      "level": "YELLOW",
+      "action": "MUTE",
+      "advice": "平台一般不删但会掐推荐。用 mute_profanity.py 对区间静音（视频流不变）。",
+      "words": ["他妈", "妈的", "我操", "草泥马", "傻逼", "鸡巴", "屌", "牛马",
+                "畜生", "文科狗", "活逼", "杂种", "屁话"]
+    },
+    {
+      "id": "ad_superlative",
+      "name": "广告法极限用语",
+      "level": "YELLOW",
+      "action": "RETITLE",
+      "advice": "《广告法》禁用绝对化用语，被职业打假举报风险高于平台审核。改口播/改标题。",
+      "words": ["最好", "最佳", "最优", "唯一", "第一品牌", "顶级", "极致", "全网最低",
+                "百分百", "100%", "根治", "彻底治愈", "全网"]
+    },
+    {
+      "id": "competitor_attack",
+      "name": "竞品/行业负面指控",
+      "level": "YELLOW",
+      "action": "RETITLE",
+      "advice": "贬低同行且无依据，既违反广告法也易被同行投诉。标题尤其要去掉具体指控。",
+      "words": ["造假", "都是假的", "假的", "冒充", "兑了水", "智商税", "三幺五",
+                "315", "黑幕", "坑人", "割韭菜", "骗人"]
+    },
+    {
+      "id": "privacy",
+      "name": "他人隐私/肖像",
+      "level": "YELLOW",
+      "action": "CONSENT",
+      "advice": "连麦粉丝、家人、前任的脸/声/婚姻年龄等信息公开发布需本人授权，否则肖像权纠纷。",
+      "escalate_distinct": true,
+      "words": ["照片", "离婚证", "十九岁", "前女友", "前妻", "单身", "征友",
+                "找对象", "介绍对象", "家里体制内", "她老公", "二老婆"]
+    },
+    {
+      "id": "platform_risk_talk",
+      "name": "平台/账号安全自述",
+      "level": "YELLOW",
+      "action": "REVIEW",
+      "advice": "自述封号/限流/网暴/话题敏感，属于平台不喜欢的内容，建议剪掉或换片。",
+      "words": ["封号", "限流", "网暴", "网爆", "直播间就关", "关小黑屋", "举报",
+                "差评", "这个话题多敏感"]
+    },
+    {
+      "id": "health_claim",
+      "name": "医疗/保健功效宣称",
+      "level": "YELLOW",
+      "action": "REVIEW",
+      "advice": "食品/化妆品宣称疗效、美白、减肥属超范围宣称，需资质或特证，否则违规。",
+      "words": ["美白", "根治", "治疗", "疗效", "减肥", "减脂", "排毒", "抗癌",
+                "壮阳", "包治", "药效"]
+    }
+  ]
+}

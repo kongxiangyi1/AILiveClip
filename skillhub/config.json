@@ -1,0 +1,21 @@
+{
+  "billing_mode": "pay_skill_sandbox",
+  "billing_channel": "alipay_a2m_self",
+  "billing_note": "收款走支付宝 AI 按量付费(A2M/402)协议, 服务端部署在 WorkBuddy 应用沙箱(零服务器/零域名, 平台分配 *.app.workbuddy.host)。SkillHub 不是收款方, 钱直接进开发者账户。官方体系只有按次计费、没有买断 —— 买断由本技能实现: 验付通过后服务端签发一枚 RSA 授权码, 客户端落盘, 之后 probe 纯本地验签直通、不再请求服务端、不再产生费用。",
+  "resource_path": "/api/license",
+  "service_url": "https://11cd16b108724b538f1f2c1518ffa6da.app.workbuddy.host",
+  "service_url_hint": "沙箱部署完成后平台分配的 HTTPS 根地址(形如 https://xxx.app.workbuddy.host)。留空时 payment_gate.py 读环境变量 AI_CLIP_BILLING_URL; 两者都为空则退回本地授权模式(离线兜底)。",
+  "service_sharecode": "FH576CIYYM",
+  "service_sharecode_hint": "平台为已发布应用分配的访问参数(?sharecode=), 客户端调用计费 API 必须携带; 重新部署若 sharecode 变化需同步更新此处。",
+  "price_cny": "19.90",
+  "alipay": {
+    "pay_url": "",
+    "pay_url_hint": "本模式下【留空即可】: 付款入口由 402 账单经 alipay-bot 在对话内生成, 技能侧不需要任何收款链接。仅当改用人工授权码兜底通道时才填(个人账号只能拿到收款码图片/短链, 需人工对账发码)。",
+    "pay_note": "买断价 ¥19.90, 付款后服务端签发授权码, 客户端落盘激活, 永久有效, 不限视频数量与调用次数。"
+  },
+  "license": {
+    "public_key_pem": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAr+jO/2C4rN2DQNBcDxRj\nNpnUZ8hB6kG+RlamQ6o9ZeIrIU043ICTt7Yp88E6HOu/hk+N5k77dCX4FB6OAi0n\nkNMe6NzrjD6T1d8YTfJIqL2UnWbMhpJxFBrR08UdoIEnjR2sx26fk9Hf4F953Sog\nhUqWWW6PYwUul0wSJC3oSzYFCsqN7v2vlupr/rdrqnB9vaIDwvZCk5/U2zFBCUcC\nD95qIq62dw0oaps321mcP9dTSF01WQV8HI18w6hFaT3pFwtt4rOjU8pFmE4FK6y6\nW8XUUNio+AYfvtMdk5U67NpmRsV20qLdKVsMlTUkIv3TW8nrNOgo7bPG+vaUo0wA\n9QIDAQAB\n-----END PUBLIC KEY-----\n",
+    "hmac_secret": "",
+    "note": "公钥随包分发, 用于离线验签服务端签发的授权码。对应私钥(license_private_key)只存在于服务端数据库, 绝不进包; 它必须区别于支付宝应用私钥, 两者混用会导致验签失败。"
+  }
+}

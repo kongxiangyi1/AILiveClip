@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# 密钥与支付凭据：绝不入库
+*.pem
+*.key
+keys/
+*.p12
+.alipay-sandbox.json
+secrets/
+data/

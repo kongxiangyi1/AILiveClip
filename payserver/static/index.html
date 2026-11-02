@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>直播切片计费 · 云端控制台</title>
+  
+  <style>
+    :root { --bg:#f6f7fb; --card:#fff; --line:#e6e8ef; --txt:#1f2430; --mut:#6b7280; --brand:#2563eb; --ok:#16a34a; --warn:#d97706; --err:#dc2626; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--txt); }
+    .wrap { max-width:880px; margin:0 auto; padding:24px 16px 64px; }
+    h1 { font-size:20px; margin:0 0 4px; }
+    .sub { color:var(--mut); font-size:13px; margin-bottom:20px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; margin-bottom:16px; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    input { padding:9px 11px; border:1px solid var(--line); border-radius:8px; font-size:14px; flex:1; min-width:160px; }
+    button { padding:9px 14px; border:0; border-radius:8px; background:var(--brand); color:#fff; font-size:14px; cursor:pointer; }
+    button.ghost { background:#eef2ff; color:var(--brand); }
+    button:disabled { opacity:.5; cursor:not-allowed; }
+    .muted { color:var(--mut); font-size:13px; }
+    .status { font-size:13px; margin-top:8px; }
+    .ok { color:var(--ok); } .warn { color:var(--warn); } .err { color:var(--err); }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th,td { text-align:left; padding:8px 6px; border-bottom:1px solid var(--line); }
+    th { color:var(--mut); font-weight:600; }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; }
+    .pill.paid { background:#dcfce7; color:var(--ok); }
+    .pill.pend { background:#fef3c7; color:var(--warn); }
+    .pill.done { background:#dbeafe; color:var(--brand); }
+    pre { white-space:pre-wrap; background:#0f172a; color:#e2e8f0; padding:14px; border-radius:10px; font-size:13px; max-height:320px; overflow:auto; }
+    .hide { display:none; }
+    code { background:#eef2ff; padding:1px 5px; border-radius:5px; font-size:12px; }
+  </style>
+<script>
+  (function () {
+    var sc = new URLSearchParams(location.search).get('sharecode') || 'FH576CIYYM';
+    var src = '/console/cloud-sdk.js' + (sc ? ('?sharecode=' + encodeURIComponent(sc)) : '');
+    document.write('<script src="' + src + '"><\/script>');
+  })();
+</script>
+</head>
+<body>
+<div class="wrap">
+  <h1>直播切片计费 · 云端控制台</h1>
+  <div class="sub">商户订单持久化到 WorkBuddy 云服务（Database + Auth + LLM）。订单数据由 WorkBuddy 账号隔离，仅本人可见。</div>
+
+  <!-- 登录卡片 -->
+  <div class="card" id="authCard">
+    <div class="row">
+      <input id="email" type="email" placeholder="商户邮箱（用于登录 / 注册）" />
+      <button id="sendOtp" class="ghost" type="button">获取验证码</button>
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <input id="code" type="text" placeholder="邮箱验证码" />
+      <button id="verifyOtp" type="button">登录 / 注册</button>
+      <button id="wbLogin" class="ghost" type="button">使用 WorkBuddy 登录</button>
+    </div>
+    <div class="status muted" id="authStatus">未登录。验证邮箱或用工彪账号登录后即可同步订单。</div>
+    <div class="row" style="margin-top:8px;">
+      <input id="sharecode" type="text" placeholder="sharecode（页面 URL 已带则无需填）" />
+      <input id="adminToken" type="password" placeholder="admin token（可选，若后端设了 ADMIN_TOKEN）" />
+    </div>
+  </div>
+
+  <!-- 主面板 -->
+  <div id="appPanel" class="hide">
+    <div class="card">
+      <div class="row">
+        <strong id="who"></strong>
+        <button id="logout" class="ghost" type="button">退出登录</button>
+        <button id="sync" type="button">从后端同步订单</button>
+        <button id="summary" class="ghost" type="button">AI 销售摘要</button>
+      </div>
+      <div class="status muted" id="syncStatus"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0 0 10px;">云端订单（liveclip_orders）</h3>
+      <div id="ordersBox" class="muted">尚未加载。</div>
+    </div>
+
+    <div class="card hide" id="summaryCard">
+      <h3 style="margin:0 0 10px;">AI 销售摘要</h3>
+      <pre id="summaryBox"></pre>
+    </div>
+  </div>
+
+  <div id="fatal" class="card err hide"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  if (!window.WorkBuddyCloud || !WorkBuddyCloud.createWorkBuddyCloud) {
+    document.getElementById("fatal").classList.remove("hide");
+    document.getElementById("fatal").textContent = "云 SDK 加载失败，请检查网络后刷新。";
+    return;
+  }
+
+  // 来自 cloud-service 激活返回的 publicConfig（仅公开配置，可安全内联）
+  var publicConfig = {
+    endpoint: "https://11cd16b108724b538f1f2c1518ffa6da.app.workbuddy.host",
+    oauthRelayBaseUrl: "https://www.workbuddy.cn/v2/as/genie-baas/oauth",
+    publishableKey: "wbpk_q5wdje5I1Kgb4Hhh5DUayF_Gtt7VVEbnT8azHzH4FDCriWZ4mIO7iBG"
+  };
+
+  var cloud = WorkBuddyCloud.createWorkBuddyCloud({
+    endpoint: publicConfig.endpoint,
+    oauthRelayBaseUrl: publicConfig.oauthRelayBaseUrl,
+    publishableKey: publicConfig.publishableKey
+  });
+
+  var $ = function (id) { return document.getElementById(id); };
+  var pending = null; // { email, verificationId, isExistingUser }
+
+  function setStatus(el, msg, cls) {
+    el.textContent = msg || "";
+    el.className = "status " + (cls || "muted");
+  }
+
+  // ---------- 工具：从 URL 读取 sharecode ----------
+  function getSharecode() {
+    var sc = $("sharecode").value.trim();
+    if (sc) return sc;
+    var p = new URLSearchParams(location.search);
+    return p.get("sharecode") || "";
+  }
+  function getAdminToken() {
+    return $("adminToken").value.trim();
+  }
+  function ordersUrl() {
+    var url = "/api/orders";
+    var q = [];
+    var sc = getSharecode();
+    if (sc) q.push("sharecode=" + encodeURIComponent(sc));
+    var at = getAdminToken();
+    if (at) q.push("token=" + encodeURIComponent(at));
+    return q.length ? url + "?" + q.join("&") : url;
+  }
+
+  // ---------- 渲染订单 ----------
+  function statusPill(o) {
+    if (o.fulfill_status === "FULFILLED") return '<span class="pill done">已履约</span>';
+    if (o.order_status === "PAID") return '<span class="pill paid">已付款</span>';
+    return '<span class="pill pend">待付款</span>';
+  }
+  function renderOrders(rows) {
+    if (!rows || !rows.length) {
+      $("ordersBox").className = "muted";
+      $("ordersBox").textContent = "云端暂无订单，请先点“从后端同步订单”。";
+      return;
+    }
+    var html = '<table><thead><tr><th>订单号</th><th>金额</th><th>状态</th><th>机器码</th><th>授权</th><th>创建时间</th></tr></thead><tbody>';
+    rows.forEach(function (o) {
+      html += "<tr><td>" + esc(o.out_trade_no || "") + "</td><td>¥" + esc(o.amount || "") +
+        "</td><td>" + statusPill(o) + "</td><td>" + esc(o.machine_code || "-") + "</td><td>" +
+        (o.has_license ? "✅" : "—") + "</td><td>" + esc((o.created_at || "").replace("T", " ").slice(0, 19)) + "</td></tr>";
+    });
+    html += "</tbody></table>";
+    $("ordersBox").className = "";
+    $("ordersBox").innerHTML = html;
+  }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  // ---------- 登录态 ----------
+  function showApp(user) {
+    $("authCard").classList.add("hide");
+    $("appPanel").classList.remove("hide");
+    $("who").textContent = "你好，" + (user && user.email ? user.email : (user && user.name ? user.name : "商户"));
+    loadOrders();
+  }
+  function showAuth() {
+    $("authCard").classList.remove("hide");
+    $("appPanel").classList.add("hide");
+  }
+
+  async function restore() {
+    var r = await cloud.auth.getSession();
+    if (r.data && r.data.session) showApp(r.data.session.user);
+    else showAuth();
+  }
+
+  // ---------- Auth：Email OTP ----------
+  $("sendOtp").onclick = async function () {
+    var email = $("email").value.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      setStatus($("authStatus"), "请输入有效的邮箱。", "err"); return;
+    }
+    this.disabled = true;
+    var r = await cloud.auth.sendOtp({ email: email });
+    this.disabled = false;
+    if (r.error) { setStatus($("authStatus"), "发送失败：" + r.error.message, "err"); return; }
+    pending = { email: email, verificationId: r.data.verificationId, isExistingUser: r.data.isExistingUser };
+    setStatus($("authStatus"), "验证码已发送，请查收邮箱。", "ok");
+  };
+
+  $("verifyOtp").onclick = async function () {
+    if (!pending) { setStatus($("authStatus"), "请先点“获取验证码”。", "warn"); return; }
+    var token = $("code").value.trim();
+    if (!token) { setStatus($("authStatus"), "请输入验证码。", "warn"); return; }
+    this.disabled = true;
+    var r = await cloud.auth.verifyOtp({
+      email: pending.email,
+      verificationId: pending.verificationId,
+      isExistingUser: pending.isExistingUser,
+      token: token
+    });
+    this.disabled = false;
+    if (r.error) { setStatus($("authStatus"), "验证失败：" + r.error.message, "err"); return; }
+    pending = null;
+    showApp(r.data.user);
+  };
+
+  // ---------- Auth：WorkBuddy OAuth ----------
+  $("wbLogin").onclick = async function () {
+    var back = new URL(location.href);
+    back.pathname = "/";
+    ["code", "state", "provider"].forEach(function (k) { back.searchParams.delete(k); });
+    var r = await cloud.auth.signInWithOAuth({ provider: "workbuddy", redirectTo: back.toString() });
+    if (r.error) { setStatus($("authStatus"), "WorkBuddy 登录启动失败：" + r.error.message, "err"); return; }
+    location.assign(r.data.url);
+  };
+
+  $("logout").onclick = async function () {
+    await cloud.auth.signOut();
+    showAuth();
+  };
+
+  // 处理 OAuth 回调（同一标签页返回）
+  (async function handleCallback() {
+    var url = new URL(location.href);
+    if (!url.searchParams.has("code") && !url.searchParams.has("error")) return;
+    if (url.searchParams.get("provider") !== "workbuddy") return;
+    var r = await cloud.auth.handleWorkBuddyCallback();
+    if (r.error) { setStatus($("authStatus"), "登录回调失败：" + r.error.message, "err"); return; }
+    if (r.data && r.data.session) {
+      ["code", "state", "provider"].forEach(function (k) { url.searchParams.delete(k); });
+      history.replaceState(null, "", url.pathname + url.search + url.hash);
+      showApp(r.data.session.user);
+    }
+  })();
+
+  // ---------- 同步订单到云端 ----------
+  $("sync").onclick = async function () {
+    this.disabled = true;
+    setStatus($("syncStatus"), "正在拉取后端订单…", "muted");
+    try {
+      var resp = await fetch(ordersUrl(), { headers: { "Accept": "application/json" } });
+      if (!resp.ok) {
+        var t = await resp.text();
+        setStatus($("syncStatus"), "后端返回 " + resp.status + "：" + t.slice(0, 120), "err");
+        this.disabled = false; return;
+      }
+      var data = await resp.json();
+      var orders = (data && data.orders) || [];
+      if (!orders.length) { setStatus($("syncStatus"), "后端暂无订单可同步。", "warn"); this.disabled = false; loadOrders(); return; }
+
+      var rows = orders.map(function (o) {
+        return {
+          out_trade_no: o.out_trade_no,
+          amount: o.amount,
+          currency: o.currency,
+          resource_id: o.resource_id,
+          goods_name: o.goods_name,
+          machine_code: o.machine_code,
+          order_status: o.order_status,
+          fulfill_status: o.fulfill_status,
+          trade_no: o.trade_no,
+          has_license: !!o.has_license,
+          updated_at: new Date().toISOString()
+        };
+      });
+      // owner_id 不传，由数据库 DEFAULT auth.uid() 自动填充，RLS 据此隔离
+      var up = await cloud.database.from("liveclip_orders").upsert(rows, { onConflict: "out_trade_no" });
+      if (up.error) { setStatus($("syncStatus"), "同步失败：" + up.error.message, "err"); this.disabled = false; return; }
+      setStatus($("syncStatus"), "已同步 " + rows.length + " 条订单到云端。", "ok");
+      loadOrders();
+    } catch (e) {
+      setStatus($("syncStatus"), "同步异常：" + (e && e.message ? e.message : e), "err");
+    }
+    this.disabled = false;
+  };
+
+  async function loadOrders() {
+    var r = await cloud.database.from("liveclip_orders").select("*").order("created_at", { ascending: false });
+    if (r.error) { renderOrders(null); $("ordersBox").textContent = "读取云端订单失败：" + r.error.message; return; }
+    renderOrders(r.data || []);
+  }
+
+  // ---------- AI 销售摘要（LLM 模块） ----------
+  $("summary").onclick = async function () {
+    $("summaryCard").classList.remove("hide");
+    var box = $("summaryBox");
+    box.textContent = "正在生成…";
+    try {
+      var rows = (await cloud.database.from("liveclip_orders").select("*")).data || [];
+      var paid = rows.filter(function (o) { return o.order_status === "PAID" || o.fulfill_status === "FULFILLED"; });
+      var revenue = paid.reduce(function (s, o) { return s + (parseFloat(o.amount) || 0); }, 0);
+      var prompt = "我是一个直播切片工具的售卖服务，共 " + rows.length + " 笔订单，其中已付款/已履约 " +
+        paid.length + " 笔，累计确认收入约 ¥" + revenue.toFixed(2) + "。请据此用简洁中文给一条经营摘要与一句建议，不要编造数据。";
+
+      var models = await cloud.llm.models.list();
+      var model = (models || []).find(function (m) { return m.disabled !== true; }) || (models && models[0]);
+      if (!model) { box.textContent = "当前无可用模型，跳过摘要。"; return; }
+
+      var text = "";
+      for await (var chunk of cloud.llm.chat.completions.create({
+        model: model.id,
+        stream: true,
+        messages: [
+          { role: "system", content: "你是电商经营助手，用简洁中文总结销售情况，不编造数据。" },
+          { role: "user", content: prompt }
+        ]
+      })) {
+        var d = chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content;
+        if (d) { text += d; box.textContent = text; }
+      }
+      if (!text) box.textContent = "（模型未返回内容）";
+    } catch (e) {
+      box.textContent = "摘要生成失败：" + (e && e.error && e.error.message ? e.error.message : (e && e.message ? e.message : e));
+    }
+  };
+
+  // 启动
+  restore();
+})();
+</script>
+</body>
+</html>

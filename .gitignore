@@ -11,9 +11,17 @@ __pycache__/
 # 环境与密钥
 .env
 *.env
+*.pem
+*.key
+*.p12
+*.pfx
+keys/
+secrets/
+*.local
 
 # 计费订单库与支付缓存(隐私)
 payserver/data/
+data/
 .pay_cache/
 
 # 系统
@@ -26,3 +34,7 @@ dist/
 
 # 运行时日志
 mute_run.log
+
+# SkillHub 本地安装元数据(含绝对路径, 由平台安装时重建)
+skillhub/_meta.json
+skillhub/_skillhub_meta.json
