@@ -1,7 +1,7 @@
 {
   "billing_mode": "pay_skill_sandbox",
   "billing_channel": "alipay_a2m_self",
-  "billing_note": "收款走支付宝 AI 按量付费(A2M/402)协议, 服务端部署在 WorkBuddy 应用沙箱(零服务器/零域名, 平台分配 *.app.workbuddy.host)。SkillHub 不是收款方, 钱直接进开发者账户。官方体系只有按次计费、没有买断 —— 买断由本技能实现: 验付通过后服务端签发一枚 RSA 授权码, 客户端落盘, 之后 probe 纯本地验签直通、不再请求服务端、不再产生费用。",
+  "billing_note": "收款走支付宝 AI 按量付费(A2M/402 协议), 服务端部署在 WorkBuddy 应用沙箱(零服务器/零域名, 平台分配 *.app.workbuddy.host)。SkillHub 不是收款方, 钱直接进开发者账户。官方体系只有按次计费、没有买断 —— 买断由本技能实现: 验付通过后服务端签发一枚 RSA 授权码, 客户端落盘, 之后 probe 纯本地验签直通、不再请求服务端、不再产生费用。",
   "resource_path": "/api/license",
   "service_url": "https://11cd16b108724b538f1f2c1518ffa6da.app.workbuddy.host",
   "service_url_hint": "沙箱部署完成后平台分配的 HTTPS 根地址(形如 https://xxx.app.workbuddy.host)。留空时 payment_gate.py 读环境变量 AI_CLIP_BILLING_URL; 两者都为空则退回本地授权模式(离线兜底)。",

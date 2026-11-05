@@ -32,30 +32,30 @@
 ## 用法
 ```bash
 # 1) 切割时带上切片号(账号)自动登记（推荐每个号用固定 --account）
-python cut_pipeline.py segments.json --mode stream_copy --account 号A
+python "<SCRIPT_DIR>/cut_pipeline.py" segments.json --mode stream_copy --account 号A
 #    → 终端打印 "注册表: 新增 N / 复用 M (切片号=号A) → <path>"
 
 # 2) 查看全部 / 按状态 / 按视频 / 按切片号
-python clip_status.py
-python clip_status.py --status pending
-python clip_status.py --video-key a1b2c3
-python clip_status.py --account 号A
+python "<SCRIPT_DIR>/clip_status.py"
+python "<SCRIPT_DIR>/clip_status.py" --status pending
+python "<SCRIPT_DIR>/clip_status.py" --video-key a1b2c3
+python "<SCRIPT_DIR>/clip_status.py" --account 号A
 
 # 3) 跨号冲突预警（高相似限流风险片段，发布前必查）
-python clip_status.py --conflicts
-python clip_status.py --conflicts --export-csv conflicts.csv
+python "<SCRIPT_DIR>/clip_status.py" --conflicts
+python "<SCRIPT_DIR>/clip_status.py" --conflicts --export-csv conflicts.csv
 
 # 4) 标记发布状态（带 --account 记录是哪个号发的）
-python clip_status.py --publish C0003 --post-id media_xxx --account 号A
-python clip_status.py --reject  C0004
+python "<SCRIPT_DIR>/clip_status.py" --publish C0003 --post-id media_xxx --account 号A
+python "<SCRIPT_DIR>/clip_status.py" --reject  C0004
 
 # 5) 导出发布管理表
-python clip_status.py --export-md  publish.md
-python clip_status.py --export-csv publish.csv
+python "<SCRIPT_DIR>/clip_status.py" --export-md  publish.md
+python "<SCRIPT_DIR>/clip_status.py" --export-csv publish.csv
 
 # 6) 历史切片补登
-python update_registry.py --dry-run
-python update_registry.py
+python "<SCRIPT_DIR>/update_registry.py" --dry-run
+python "<SCRIPT_DIR>/update_registry.py"
 ```
 
 ## 注册表位置

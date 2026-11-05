@@ -1,4 +1,4 @@
-# 切片执行纪律(27条全文 + low 段分级)
+# 切片执行纪律(28条全文 + low 段分级)
 
 > 迁移自项目 SKILL.md。纪律 #8 的专有名词修正对照表是作者内容领域(酒类/商业口播直播)的**示例**, 使用本技能时请按**自己的内容领域**维护该表, 格式不变: 左列为 ASR 错词, 右列为正确名。
 
@@ -21,6 +21,7 @@
 
    **修正对照表**: 逐条对照后再落标题, 禁止使用左侧 ASR 词。表在哪里分两种情况:
    - 本地安装(未公开发布): 见 `references/brand-words.private.md`(含真实品牌/人名, **不随包分发**)。
+   - 格式模板见 `references/brand-words.template.md`。
    - 从平台安装的公开版: 该文件不存在, **首次使用时向用户索取**, 并按下表格式自建。
 
    对照表格式(**示例数据, 请替换为你自己的**):
@@ -50,13 +51,13 @@
     ASR 转写按 ~12.4x 速率估算(125min ≈ 10min); 语义分段+专有名词确认含人工等待 ≈16 分钟;
     segmenter 单次运行仅数秒
 16. **一轮确认制(2026-08-13 实施)**: 阶段2 首次输出必须打包三件事, 用户一次回复, 禁止逐轮小步迭代:
-    ① 专有名词候选清单(运行 `python review_checklist.py` 自动生成 → temp/review_checklist.txt,
+    ① 专有名词候选清单(运行 `python "<SCRIPT_DIR>/review_checklist.py"` 自动生成 → temp/review_checklist.txt,
     3-6字高置信区优先扫, 含口语字/2字词降为参考区; 字段 schema: segments.json=segments[],
     clips_refined.json=clips[] 含 review_priority/start_offset_ms/end_offset_ms) ② 完整段表
     (段号/标题/MMSS/分级/首句…尾句, 只需扫 [必须确认] 段) ③ 过渡句归属规则已固定"归后段", 不再讨论
 17. **品牌名修正必须贯穿全部产物(2026-08-13 教训)**: 用户确认正确名后, 同步改
     segments.json / clips_refined.json / cut_results.json 的 title/label/note/boundary_hint,
-    **并重命名输出目录与 mp4 文件名**(用 `python fix_brand_name.py <输出日期目录>`, 自动备份 _bak_brand)。
+    **并重命名输出目录与 mp4 文件名**(用 `python "<SCRIPT_DIR>/fix_brand_name.py" <输出日期目录>`, 自动备份 _bak_brand)。
     transcript.json 是 ASR 原文**不要改**(review_checklist 候选区保留原词供人工核对)。
     教训: 纪律8的对照表早已写明正确名, 执行却全程用了 ASR 的同音错字——正确名必须从对照表引用,
     生成标题前显式读取核对, 不凭 ASR 输出或记忆
@@ -101,7 +102,7 @@
        有命中即修正后重跑 segmenter, 不进入切割
     ④ 专有名词清单给用户确认时, 清单本身必须已用正确名(本次清单写错字是源头污染, 用户
        不可能从错误清单里纠错)
-    (重命名交付物用 `python fix_brand_name.py <输出日期目录>`, 见纪律#17)
+    (重命名交付物用 `python "<SCRIPT_DIR>/fix_brand_name.py" <输出日期目录>`, 见纪律#17)
 23. **写脚本前强制 Read 目标 JSON 确认字段类型(2026-08-15 教训)**: 任何读 JSON 的 fix/verify 脚本,
     写代码前必须先 Read 或 dump 单条记录确认真实 schema, 禁止凭记忆假设字段类型。
     已踩坑: fix_names.py 假设 `title:str`, 实际 clips 用 `idx:int`(切片报 TypeError);

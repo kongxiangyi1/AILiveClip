@@ -81,7 +81,7 @@
 > 本次任务在纪律/经验已较完整前提下，仍暴露若干"新坑"与"重演坑"，统一沉淀如下，避免下次再踩。
 
 - **scripts/temp 跨任务污染（新坑）**：`scripts/temp/` 是 skill 全局共享工作区，任意新任务跑 asr_pipeline 都会覆盖 `transcript.json`/`segments.json`。本次做文案时读到的是 08-19 另一场直播内容。救回方式：以 `录制/output/<日期>/cut_results.json` 为稳定真相源（它不会被后续任务覆盖），文案/验收都从它取，不依赖 scripts/temp。长期方案：需留存的中间产物复制到录制文件夹 `temp/` 或 output，不要让 scripts/temp 成为唯一来源。
-- **文件名敏感字符清洗应前置（新）**：`vs`/`%`/`&`/引号/空格等在某些上传平台报错。本次交付后才用 `scripts/temp/rename_clips.py` 手动清洗（`vs→对比`、`93%→百分之九十三`、去中文引号）。应固化为交付前标准步骤：cut_pipeline 后跑一次文件名清洗，或直接在 sanitize 里做语义化替换（而非简单 `_`）。脚本可提升为 `scripts/clean_filenames.py`。
+- **文件名敏感字符清洗应前置（新）**：`vs`/`%`/`&`/引号/空格等在某些上传平台报错。本次交付后才用 `scripts/temp/rename_clips.py` 手动清洗（`vs→对比`、`93%→百分之九十三`、去中文引号）。应固化为交付前标准步骤：cut_pipeline 后跑一次文件名清洗，或直接在 sanitize 里做语义化替换（而非简单 `_`）。脚本可提升为独立的 `clean_filenames.py`（**尚未实现，仅经验建议**）。
 - **pin 边界须查相邻重叠（新，segmenter 盲区）**：给某段加 `pin_start` 重跑后，段落起点被钉住，但**前一段的 end 仍按吸附结果**（可能 > 新 start）产生重叠。本次 pin 4 段后出现 3 处相邻重叠，需再给相邻段的对应端点加 pin 解决。规则：每次 pin 后检查「前段 end 是否 > 本段 pin_start」，是则同步 pin 前段 end（或本段 start 前移）。建议 segmenter 未来支持 pin 时联动前段。
 - **AI 自生成备注也要同音一致性 grep（新）**：本次某场 #09 备注写"<人名写法A>"、#10 写"<同音写法B>"，是 Agent 自己生成时混写同音字，并非 ASR 原文。纪律 #8/#22 只覆盖"ASR 错词→正确名"，未覆盖"AI 生成文本自身前后不一致"。补：定稿后除 grep 已知错词，还要 grep 自己写的人名/品牌是否前后一致（如上例的两种写法、或"正确名/同音错字"混用）。
 - **ffmpeg 末段 seek volumedetect n_samples=0（新，假阴性）**：验证切片尾静音时，`ffmpeg -ss (dur-1) -t 1 -af volumedetect` 在文件末尾常返回 `n_samples: 0`（无采样），被误判异常。实为 ffmpeg 末段 `-ss`+`-t` 采样坑，非缺陷。正确做法：尾静音验证改用 `-ss (dur-2)` 或全程 `silencedetect` 扫末段，不要依赖末段 1s volumedetect 的 mean_volume。
@@ -94,7 +94,7 @@
 
 每场直播都有自己的人名/品牌词表，**按主播/场次累积维护**：
 
-- 本地安装: 追加到 `references/brand-words.private.md` 的 B 节(**不随包分发**)。
+- 本地安装: 追加到 `references/brand-words.private.md` 的 B 节(**不随包分发**, 格式见 `references/brand-words.template.md`)。
 - 公开版: 该文件不存在, 首次切某个主播时向用户索取, 自行新建。
 
 维护要点:

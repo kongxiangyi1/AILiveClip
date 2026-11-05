@@ -1,6 +1,6 @@
 """Streamlit审核界面: 查看、调整、导出切片
 
-启动: streamlit run clipping/app.py
+启动: streamlit run "<SCRIPT_DIR>/app.py"   # SCRIPT_DIR 见 SKILL.md《前置环境》
 """
 import json
 import os
@@ -15,8 +15,9 @@ st.caption("上传 segments.json,调整切点后导出")
 segments_file = st.file_uploader("上传 segments.json", type=["json"])
 
 if segments_file is None:
-    # 尝试读取默认路径(锚定到脚本所在目录)
-    default_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "temp", "segments.json")
+    # 尝试读取默认路径(temp/ 落在使用者工作区, 与 SKILL.md 口径一致)
+    _work = os.environ.get("AI_LIVE_CLIP_WORKDIR") or os.getcwd()
+    default_path = os.path.join(_work, "temp", "segments.json")
     if os.path.exists(default_path):
         with open(default_path, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -35,7 +36,7 @@ if not video_exists:
     st.warning(f"视频文件不存在: {video_path}（无法预览，但仍可调整参数）")
 
 # 浏览器无法直接播放.ts等容器,优先使用转码后的MP4预览文件
-preview_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "temp", "preview.mp4")
+preview_path = os.path.join(_work, "temp", "preview.mp4")
 preview_exists = os.path.exists(preview_path)
 if not preview_exists and video_exists and not video_path.lower().endswith(".mp4"):
     st.warning(

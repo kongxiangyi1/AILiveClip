@@ -548,9 +548,22 @@ def cmd_probe(args):
         print(f"  金额 {proto['amount']} {proto['currency']}  订单号 {proto['out_trade_no']}")
         print(f"  支付截止 {proto['pay_before']}")
         _amt = hget(headers, "amtPaymentLink") or proto.get("amt_pre_pay_id", "")
-        if _amt and str(_amt).startswith(("MOCKPRE", "LOCALFALLBACK")):
+        _mock = bool(_amt) and str(_amt).startswith(("MOCKPRE", "LOCALFALLBACK"))
+        if _mock:
             print(f"  [警告] 预下单号是本地模拟值({_amt[:12]}…), 这笔账单付不了款, "
                   f"仅用于联调; 生产需真实 amt_pre_pay_id")
+        # ★ 服务端预下单失败时会降级出 402(不硬失败), 但把支付宝错误原文放进响应体
+        #   precreate_error, 且不下发 amtPaymentLink。这里必须打印出来, 否则买家侧
+        #   只看到下游模糊报错(如卖家标识不匹配), 容易误判成卖家配置问题而瞎改。
+        if not _amt or _mock:
+            _pre_err = resp.get("precreate_error") if isinstance(resp, dict) else None
+            if _pre_err:
+                print(f"  [服务端预下单失败] {_pre_err}")
+                print("  ⛔ 支付宝侧没有这笔预订单, 这笔账单付不了款; "
+                      "请把订单号与上面错误原文发给作者, 不要反复重试 pay")
+            else:
+                print("  [警告] 服务端未下发真实预下单号(amtPaymentLink), 付款可能无法完成; "
+                      "请把订单号发给作者排障")
         print(f"  python payment_gate.py pay")
         return 402
     if unreachable(status, body):

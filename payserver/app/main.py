@@ -20,7 +20,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from . import config, crypto_sign, orders
-from .alipay import confirm_fulfillment, verify_payment
+from .alipay import confirm_fulfillment, precreate_payment, verify_payment
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -55,7 +55,8 @@ def _is_future(iso):
         return False
 
 
-def _build_payment_needed(out_trade_no, amount, resource_id, goods_name, pay_before):
+def _build_payment_needed(out_trade_no, amount, resource_id, goods_name, pay_before,
+                          amt_pre_pay_id=""):
     seller_signature = crypto_sign.seller_sign(
         {
             "amount": amount,
@@ -90,6 +91,10 @@ def _build_payment_needed(out_trade_no, amount, resource_id, goods_name, pay_bef
             "service_id": config.SERVICE_ID,
         },
     }
+    # 官方口径的预下单号同时内嵌进账单体, 买家侧 CLI 从响应头或账单体都能取到。
+    # 不进 seller_sign 的 8 字段签名串(与原有 seller_sign_type / seller_signature 一样属于未签名字段)。
+    if amt_pre_pay_id:
+        payment_needed["protocol"]["amt_pre_pay_id"] = amt_pre_pay_id
     return crypto_sign.b64url_encode(json.dumps(payment_needed, ensure_ascii=False))
 
 
@@ -99,7 +104,10 @@ def _issue_402(machine_code: str):
     currency = "CNY"
     resource_id = config.RESOURCE_PATH
     goods_name = config.GOODS_NAME
-    pay_before = (datetime.now(timezone.utc).astimezone() + timedelta(minutes=30)).isoformat()
+    # 官方 precreate 要求 pay_before 为 string[1,32]；带 6 位微秒会顶到 32 字符边界，
+    # 统一去掉微秒(账单/签名/预下单三处用同一个值)。
+    pay_before = (datetime.now(timezone.utc).astimezone()
+                  + timedelta(minutes=30)).replace(microsecond=0).isoformat()
 
     if not (config.APP_PRIVATE_KEY and config.SELLER_ID and config.APP_ID):
         return JSONResponse(
@@ -107,7 +115,21 @@ def _issue_402(machine_code: str):
             status_code=500,
         )
 
-    encoded = _build_payment_needed(out_trade_no, amount, resource_id, goods_name, pay_before)
+    # ★ 官方三步的第 0 步：先向支付宝预下单，拿到 amt_pre_pay_id 才能出 402。
+    #   少了这步支付宝侧没有这笔单，买家侧必然付不了款(技能文档契约 0)。
+    #   失败时不硬失败、保持原有 402 出账能力，但把错误显式回传，绝不伪装成功。
+    amt_pre_pay_id = ""
+    precreate_error = ""
+    if os.environ.get("AI_CLIP_PRECREATE", "1") != "0" and not config.is_sandbox():
+        try:
+            amt_pre_pay_id = precreate_payment(
+                out_trade_no, amount, goods_name, pay_before, currency)
+        except Exception as e:  # noqa: BLE001
+            precreate_error = f"{type(e).__name__}: {e}"
+            print(f"[预下单失败] {precreate_error}", flush=True)
+
+    encoded = _build_payment_needed(
+        out_trade_no, amount, resource_id, goods_name, pay_before, amt_pre_pay_id)
     orders.create_pending(
         {
             "out_trade_no": out_trade_no,
@@ -119,6 +141,9 @@ def _issue_402(machine_code: str):
             "machine_code": machine_code or "*",
         }
     )
+    headers = {"Payment-Needed": encoded}
+    if amt_pre_pay_id:
+        headers["amtPaymentLink"] = amt_pre_pay_id
     body = {
         "code": "Payment-Needed",
         "message": "需要支付",
@@ -126,8 +151,11 @@ def _issue_402(machine_code: str):
         "amount": amount,
         "currency": currency,
         "goods_name": goods_name,
+        "amt_pre_pay_id": amt_pre_pay_id,
     }
-    return JSONResponse(body, status_code=402, headers={"Payment-Needed": encoded})
+    if precreate_error:
+        body["precreate_error"] = precreate_error
+    return JSONResponse(body, status_code=402, headers=headers)
 
 
 def _issue_license_key(order, trade_no, amount):

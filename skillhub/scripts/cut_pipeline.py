@@ -349,4 +349,6 @@ if __name__ == "__main__":
                    help="不写入全局注册表(切片号去重/发布管理)")
     p.add_argument("--account", help="切片号/账号标识(跨号协调: 同一片段多号争用会预警)")
     args = p.parse_args()
-    run(args.segments, args.workers, args.mode, args.max_snap_s, args.no_registry, args.account)
+    from errors import guard
+    with guard("cut_pipeline.py"):
+        run(args.segments, args.workers, args.mode, args.max_snap_s, args.no_registry, args.account)

@@ -15,7 +15,8 @@ import sys
 
 sys.stdout.reconfigure(encoding="utf-8")
 
-BASE = os.path.dirname(os.path.abspath(__file__))
+# temp/ 落在使用者工作区(AI_LIVE_CLIP_WORKDIR 或 cwd), 与 SKILL.md 口径一致
+BASE = os.environ.get("AI_LIVE_CLIP_WORKDIR") or os.getcwd()
 TEMP = os.path.join(BASE, "temp")
 
 # 常见口语/虚词(专有名词候选过滤)

@@ -114,4 +114,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    from errors import guard
+    with guard("mute_profanity.py"):
+        main()

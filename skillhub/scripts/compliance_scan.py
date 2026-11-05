@@ -465,4 +465,6 @@ def main():
 
 
 if __name__ == '__main__':
-    sys.exit(main())
+    from errors import guard
+    with guard("compliance_scan.py"):
+        sys.exit(main())

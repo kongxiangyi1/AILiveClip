@@ -362,12 +362,12 @@ def run(transcript_path, segments_path, out_path):
     return result
 
 
-if __name__ == "__main__":
-    base = os.path.dirname(os.path.abspath(__file__))
-    seg_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(
-        base, "temp", "segments.json")
-    tr_path = os.path.join(base, "temp", "transcript.json")
-    out = os.path.join(base, "temp", "clips_refined.json")
+def _cli():
+    # temp/ 锚到使用者工作区(Config.TEMP_DIR = AI_LIVE_CLIP_WORKDIR 或 cwd), 不是安装目录
+    base = Config.TEMP_DIR
+    seg_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(base, "segments.json")
+    tr_path = os.path.join(base, "transcript.json")
+    out = os.path.join(base, "clips_refined.json")
     res = run(tr_path, seg_path, out)
     print(f"产出 {len(res['clips'])} 段 -> {out}")
     for c in res["clips"]:
@@ -394,3 +394,9 @@ if __name__ == "__main__":
         print("  [无需人工复核]")
     if lowrisk:
         print(f"  [{len(lowrisk)}] 段为 low_risk(±500ms 内微调), 可批量接受")
+
+
+if __name__ == "__main__":
+    from errors import guard
+    with guard("segmenter.py"):
+        _cli()
